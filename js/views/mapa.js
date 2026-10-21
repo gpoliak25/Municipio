@@ -153,6 +153,13 @@ const MapaView = (() => {
         <div><span>Autorizados</span><b>${m.aut}</b></div>
         <div><span>Detectados</span><b class="${m.estado === 'critico' ? 't-crit' : m.estado === 'leve' ? 't-warn' : ''}">${m.det ?? '—'}</b></div>
         <div><span>Exceso</span><b>${m.exceso == null ? '—' : m.exceso > 0 ? '+' + m.exceso : '0'}</b></div>
+        <div class="pct-ficha ${m.estado}">
+          <div class="pct-top"><span>% de exceso</span><b>${m.ratio == null ? '—' : U.pct(m.ratio, 1)}</b></div>
+          ${m.ratio == null ? '<small>Sin relevamiento</small>' : `
+          <div class="pct-bar" role="img" aria-label="Exceso ${U.pct(m.ratio, 1)}; el umbral de crítico es 50 %"><i style="width:${Math.min(100, m.ratio / 1.5 * 100).toFixed(1)}%"></i><em style="left:${(0.5 / 1.5 * 100).toFixed(1)}%"></em></div>
+          <div class="pct-scale"><span>0 %</span><span style="left:${(0.5 / 1.5 * 100).toFixed(1)}%">50 % · crítico</span><span>150 %+</span></div>
+          <small>${m.ratio <= 0 ? 'Cumple: no hay cables por encima de lo autorizado.' : m.ratio <= 0.5 ? 'Exceso leve: hasta la mitad de lo autorizado.' : `Exceso crítico: ${U.num(m.exceso)} cables de más sobre ${U.num(m.aut)} autorizados.`}</small>`}
+        </div>
       </div>
       <table class="table mini">
         <thead><tr><th>Proveedor</th><th class="num">Aut.</th><th class="num">Det.</th><th class="num">Exc.</th></tr></thead>

@@ -14,6 +14,8 @@ npx serve .            # o: python -m http.server 8080
 ```
 Después abrir `http://localhost:3000` (o el puerto que indique).
 
+**Opción 3: un solo archivo.** `node tools/generar-html.js` arma `dist/demo-cableado-jose-c-paz.html`, con todo el código y los datos adentro, para enviarlo o abrirlo con doble clic.
+
 Hace falta internet para cargar las teselas del mapa (OpenStreetMap) y las librerías Leaflet y Chart.js desde un CDN gratuito. No se usan servicios pagos ni claves de API.
 
 ### Presentación sugerida (5 minutos)
