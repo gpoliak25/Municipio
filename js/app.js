@@ -14,6 +14,7 @@ const App = (() => {
     { id: 'portal', label: 'Portal del proveedor', icon: 'building', view: PortalView },
     { id: 'auditoria', label: 'Auditoría y roles', icon: 'shield', view: AuditoriaView },
     { id: 'planificacion', label: 'Planificación', icon: 'layers', view: PlanificacionView },
+    { id: 'analitica', label: 'Analítica y modelos', icon: 'chart', view: AnaliticaView },
   ];
   let current = null;
   const viewEl = () => document.getElementById('view');

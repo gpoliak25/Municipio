@@ -216,7 +216,7 @@ const PortalView = (() => {
     const codigo = `0458${id}${String(Math.round(monto)).padStart(12, '0')}${Store.state.hoy.replace(/-/g, '')}`;
     const venc = esCanon ? `${Store.state.hoy.slice(0, 8)}10` : (e.vence || U.addDays(Store.state.hoy, 15));
     const doc = `<article class="doc boleta">
-        <header class="doc-head"><div class="doc-escudo">${U.icon('shield', 30)}</div><div><b>${U.esc(M.nombre)}</b><br>Boleta de pago · Tasa por ocupación del espacio público</div><div class="doc-num">Vto. ${U.fmtDate(venc)}</div></header>
+        <div class="doc-demo">Documento de demostración · datos simulados · sin validez legal</div><header class="doc-head"><div class="doc-escudo">${U.icon('shield', 30)}</div><div><b>${U.esc(M.nombre)}</b><br>Boleta de pago · Tasa por ocupación del espacio público</div><div class="doc-num">Vto. ${U.fmtDate(venc)}</div></header>
         <dl class="kv"><dt>Contribuyente</dt><dd>${U.esc(p.nombre)} · CUIT ${p.cuit}</dd><dt>Concepto</dt><dd>${U.esc(concepto)}</dd><dt class="strong">Importe</dt><dd class="strong">${U.money(monto)}</dd></dl>
         <div class="barcode">${U.barcodeSVG(codigo)}<code>${codigo}</code></div>
         <p class="small muted">Pagable en bancos adheridos, Pago Fácil, Rapipago, home banking o con QR. Demo: sin validez fiscal.</p>

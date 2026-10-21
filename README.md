@@ -2,7 +2,7 @@
 
 Demo web interactiva para municipios. Muestra cómo detectar, cuantificar, cobrar y sancionar el exceso de cables que los proveedores de cable e internet instalan en postes y ductos municipales.
 
-> Municipio, proveedores, personas y montos son **ficticios**. No hay backend: todo corre en el navegador con datos simulados.
+> **Escenario: Municipalidad de José C. Paz (Provincia de Buenos Aires).** Los barrios (Centro, Santa Rita, Piñero, Juan Vucetich y Sol y Verde) y las 180 cuadras son reales, tomados de OpenStreetMap. Los proveedores, las personas, los permisos, los conteos y los montos son **ficticios**, y los documentos llevan la leyenda "Documento de demostración". No hay backend: todo corre en el navegador con datos simulados.
 
 ## Cómo correrla
 
@@ -29,11 +29,12 @@ Hace falta internet para cargar las teselas del mapa (OpenStreetMap) y las libre
 | 2 | Mapa GIS | Tramos en semáforo (verde / amarillo / rojo / gris), filtros por proveedor, zona y estado, y detalle con foto, cargos y expediente |
 | 3 | Relevamiento IA | Foto de muestra o subida (foto o video), detección simulada con recuadros, conteo y confianza, validación del inspector y evidencia con hash |
 | 4 | Identificación | Precintos QR por cable, asignación a proveedor, alertas de cables sin identificar y en desuso |
-| 5 | Motor de cobro | Tarifas configurables, simulador *what-if* en tiempo real y liquidación detallada paso a paso |
+| 5 | Motor de cobro | Tarifas configurables, escenarios conservador / estándar / ambicioso, simulador *what-if* en tiempo real y liquidación detallada paso a paso |
 | 6 | Expedientes | Workflow de 7 etapas, semáforo de plazos, intimación imprimible (PDF) y régimen de regularización voluntaria |
 | 7 | Portal del proveedor | Login simulado, tramos, declaración jurada, permisos con plano *as built*, deudas, boletas y pagos |
 | 8 | Auditoría | Log encadenado con hash (con verificación y simulación de alteración) y matriz de roles y permisos |
 | 9 | Planificación | Zonas candidatas para ducto compartido, costo, ingresos por alquiler de capacidad y plazo de recupero |
+| 10 | Analítica y modelos | Estadística descriptiva, correlaciones, IC 95 %, t de Welch, chi-cuadrado, regresión múltiple (con VIF y residuos), red neuronal contra línea base y priorización de los tramos sin relevar |
 
 El **selector de Rol** (barra superior) cambia entre Administrador, Inspector, Hacienda, Legal y Proveedor. Las acciones se habilitan o bloquean según los permisos de cada rol, y cada cambio queda en la auditoría.
 
@@ -53,7 +54,7 @@ tools/generar-geometria.js  Descarga cuadras reales de OpenStreetMap para el map
 ```
 
 - **Coherencia de datos:** todas las pantallas leen del mismo `Store`. El dashboard, el mapa y los expedientes calculan sus números sobre los mismos tramos, así que siempre coinciden. Cada acción (relevar, intimar, pagar…) actualiza el Store y todas las vistas se refrescan.
-- **Datos determinísticos:** se generan con una semilla fija (`semilla` en la configuración). Siempre salen los mismos 180 tramos, con distribución ≈55 % cumple, 25 % exceso leve, 15 % crítico y 5 % sin relevar.
+- **Datos determinísticos:** se generan con una semilla fija (`semilla` en la configuración). Siempre salen los mismos 180 tramos, con distribución ≈55 % cumple, 25 % exceso leve, 15 % crítico y 5 % sin relevar. El exceso es más probable en permisos antiguos y cuadras densas, y lo incumple con más frecuencia el proveedor con mayor `propension`. Esas relaciones son las que estudia el módulo de analítica.
 - **Persistencia:** el estado se guarda en `localStorage`, así que sobrevive a una recarga.
 
 ### Motor de cálculo (`Store.calcCargos`)
@@ -74,15 +75,15 @@ Estados del tramo: **leve** hasta 50 % de cables por encima de lo autorizado; **
    - `proveedores`: nombres, CUIT, colores. `propension` controla cuánto incumple cada uno.
    - `zonas`: nombre, `offset` respecto del centro, cantidad de tramos y % de ductos.
    - `tarifas`, `amnistia` y `planificacion`: valores iniciales.
-   - `casoDestacado`: el tramo que usa la demo guiada (por defecto **T-0042**: 5 cables autorizados y 10 detectados).
+   - `casoDestacado`: el tramo que usa la demo guiada (por defecto **T-0042**, General Lavalle 400–500 en el Centro: 5 cables autorizados y 10 detectados).
 2. Regenerar la geometría para que los tramos caigan sobre calles reales del nuevo centro:
    ```bash
    node tools/generar-geometria.js
    ```
-   (requiere Node 18+ e internet; consulta la API pública Overpass de OpenStreetMap). Si se borra `data/geo-tramos.js`, la demo usa una grilla sintética.
+   (requiere Node 18+ e internet; consulta la API pública Overpass de OpenStreetMap y, si está saturada, la API oficial de OSM). Si se borra `data/geo-tramos.js`, la demo usa una grilla sintética.
 3. Recargar con **"Reiniciar datos de la demo"**, porque el estado anterior queda guardado en el navegador.
 
-> Nota: el mapa base y las cuadras provienen de una ciudad real (OpenStreetMap, © colaboradores de OSM, licencia ODbL) que se usa sólo como escenario visual. Los nombres del municipio, los proveedores y todos los datos de ocupación son inventados.
+> Nota: el mapa base, los barrios y las cuadras de José C. Paz provienen de OpenStreetMap (© colaboradores de OSM, licencia ODbL). Los proveedores, sus permisos y todos los datos de ocupación, deuda y sanciones son inventados y no describen la situación real del municipio.
 
 ## Limitaciones (es una demo)
 - La "visión por computadora" es simulada: los recuadros y el conteo se generan sobre una imagen ilustrativa. En una foto subida, el conteo se toma del tramo.

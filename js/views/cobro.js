@@ -15,6 +15,15 @@ const CobroView = (() => {
     { key: 'multaPorCable', label: 'Multa por cable no declarado', min: 0, max: 1500000, step: 25000, fmt: v => U.money(v) },
   ];
 
+  // Escenarios predefinidos (el estándar es la tarifa de la ordenanza)
+  const PRESETS = {
+    conservador: { label: 'Conservador', v: { tarifaCableMetroMes: 60, tarifaPosteMes: 10000, recargoExceso: 50, interesMoraMensual: 2, multaPorCable: 250000 } },
+    estandar: { label: 'Estándar', v: () => ({ ...Store.CFG.tarifas }) },
+    ambicioso: { label: 'Ambicioso', v: { tarifaCableMetroMes: 130, tarifaPosteMes: 25000, recargoExceso: 200, interesMoraMensual: 5, multaPorCable: 800000 } },
+  };
+  const presetDe = k => { const p = PRESETS[k].v; return typeof p === 'function' ? p() : { ...p }; };
+  const presetActual = () => Object.keys(PRESETS).find(k => PARAMS.every(p => presetDe(k)[p.key] === esc[p.key]));
+
   function render(el, params = {}) {
     root = el;
     if (!esc) esc = { ...Store.state.params };
@@ -31,6 +40,7 @@ const CobroView = (() => {
       <div class="cobro-layout">
         <div class="card" id="cobro-params">
           <div class="card-head"><h3>Parámetros del escenario</h3>${puede ? '' : `<span class="badge b-none">${U.icon('lock', 12)}Sólo simulación</span>`}</div>
+          <div class="preset-row" role="group" aria-label="Escenarios predefinidos">${Object.entries(PRESETS).map(([k, p]) => `<button class="btn btn-sm${presetActual() === k ? ' active' : ''}" data-preset="${k}">${p.label}</button>`).join('')}</div>
           ${PARAMS.map(p => `
             <div class="slider-row">
               <div class="slider-top"><label for="s-${p.key}">${p.label}</label><b id="v-${p.key}">${p.fmt(esc[p.key])}</b></div>
@@ -59,6 +69,7 @@ const CobroView = (() => {
       </div>`;
 
     root.querySelectorAll('input[type=range]').forEach(s => s.oninput = () => { esc[s.dataset.k] = +s.value; refreshOutputs(); });
+    root.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { esc = presetDe(b.dataset.preset); render(root); U.toast(`Escenario ${PRESETS[b.dataset.preset].label.toLowerCase()} cargado en el simulador.`); });
     root.querySelector('#c-reset').onclick = () => { esc = { ...Store.state.params }; render(root); };
     root.querySelector('#c-aplicar').onclick = () => { if (Store.setParams(esc)) U.toast('Nuevas tarifas aplicadas y registradas en auditoría.', 'ok'); };
     root.querySelector('#c-exp').onchange = e => { expSel = e.target.value; refreshOutputs(); };
@@ -75,6 +86,7 @@ const CobroView = (() => {
   function refreshOutputs() {
     if (!root || !root.isConnected) return;
     const vig = Store.totals(Store.state.params), sim = Store.totals(esc);
+    const pa = presetActual(); root.querySelectorAll('[data-preset]').forEach(b => b.classList.toggle('active', b.dataset.preset === pa));
     PARAMS.forEach(p => {
       root.querySelector(`#v-${p.key}`).textContent = p.fmt(esc[p.key]);
       const s = root.querySelector(`#s-${p.key}`); if (+s.value !== esc[p.key]) s.value = esc[p.key];

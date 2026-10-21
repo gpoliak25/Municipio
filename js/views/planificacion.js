@@ -75,7 +75,7 @@ const PlanificacionView = (() => {
     });
 
     if (window.L) {
-      map = L.map('plan-map').setView(Store.CFG.municipio.centro, 14);
+      map = L.map('plan-map').fitBounds(L.latLngBounds(Store.state.tramos.flatMap(t => t.coords)).pad(0.12));
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; colaboradores de OpenStreetMap' }).addTo(map);
       layer = L.layerGroup().addTo(map);
       setTimeout(() => map && map.invalidateSize(), 80);

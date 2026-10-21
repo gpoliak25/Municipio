@@ -19,6 +19,7 @@ const ExpedientesView = (() => {
 
   function render(el, params = {}) {
     root = el;
+    if (params.prov) Object.assign(filtro, { prov: params.prov, etapa: null, plazo: '', q: '' });
     const S = Store.state, puedeAmn = Store.can('amnistia');
     const abiertos = S.expedientes.filter(e => e.abierto);
     const porEtapa = Store.ETAPAS.map((_, i) => i === 6 ? S.expedientes.filter(e => !e.abierto).length : abiertos.filter(e => e.etapa === i).length);
@@ -201,6 +202,7 @@ const ExpedientesView = (() => {
     const plazoHasta = e.etapa >= 3 && e.vence ? e.vence : U.addDays(fecha, 30);
     return `
       <article class="doc">
+        <div class="doc-demo">Documento de demostración · datos simulados · sin validez legal</div>
         <header class="doc-head">
           <div class="doc-escudo">${U.icon('shield', 34)}</div>
           <div><b>${U.esc(M.nombre)}</b><br>${U.esc(M.area)}<br><span class="small">${U.esc(M.domicilio)}</span></div>

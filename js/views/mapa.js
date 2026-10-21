@@ -12,8 +12,11 @@ const MapaView = (() => {
   function render(el, params = {}) {
     root = el;
     destroy();
-    if (params.estado && U.ESTADOS[params.estado]) Object.keys(filtros.estados).forEach(k => filtros.estados[k] = k === params.estado);
-    if (params.prov) filtros.prov = params.prov;
+    // Los enlaces con filtro (desde el tablero) parten de los filtros limpios
+    if (params.estado || params.prov || params.zona) {
+      Object.assign(filtros, { prov: params.prov || '', zona: params.zona || '', q: '' });
+      Object.keys(filtros.estados).forEach(k => filtros.estados[k] = !params.estado || k === params.estado);
+    }
     const C = Store.CFG;
 
     root.innerHTML = `
@@ -27,7 +30,7 @@ const MapaView = (() => {
           <select id="f-zona"><option value="">Todas</option>${C.zonas.map(z => `<option value="${z.id}" ${filtros.zona === z.id ? 'selected' : ''}>${U.esc(z.nombre)}</option>`).join('')}</select></label>
         <div class="field"><span>Estado</span>
           <div class="chips">${Object.entries(U.ESTADOS).map(([k, v]) => `<button class="chip ${filtros.estados[k] ? 'on' : ''}" data-est="${k}"><i class="sw" style="background:${v.color}"></i>${v.label}</button>`).join('')}</div></div>
-        <label class="field grow"><span>Buscar</span><input id="f-q" type="search" placeholder="Tramo o calle (ej: T-0042, San Martín)" value="${U.esc(filtros.q)}"></label>
+        <label class="field grow"><span>Buscar</span><input id="f-q" type="search" placeholder="Tramo o calle (ej: T-0042, General Lavalle)" value="${U.esc(filtros.q)}"></label>
         <div class="filter-count" id="f-count"></div>
       </div>
       <div class="map-layout">
@@ -50,7 +53,7 @@ const MapaView = (() => {
     });
 
     if (!window.L) { root.querySelector('#map').innerHTML = '<div class="empty">No se pudo cargar la librería de mapas (requiere conexión a internet).</div>'; return; }
-    map = L.map('map', { zoomControl: true, preferCanvas: false }).setView(C.municipio.centro, C.municipio.zoom);
+    map = L.map('map', { zoomControl: true, preferCanvas: false }).fitBounds(L.latLngBounds(Store.state.tramos.flatMap(t => t.coords)).pad(0.05));
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19, attribution: '&copy; colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);

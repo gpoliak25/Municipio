@@ -25,17 +25,51 @@ const k = Math.PI / 180;
 const MY = 111320, MX = 111320 * Math.cos(CLAT * k);
 const dist = (a, b) => Math.hypot((a[0] - b[0]) * MY, (a[1] - b[1]) * MX);
 
-async function main() {
-  // Caja que cubre todas las zonas con margen
+const HIGHWAY = /^(residential|tertiary|secondary|primary|unclassified|living_street)$/;
+const UA = { 'User-Agent': 'cableado-demo/1.0' };
+
+/** Overpass: una sola consulta con la caja que cubre todas las zonas */
+async function desdeOverpass() {
   const lats = CFG.zonas.map(z => CLAT + z.offset[0]), lngs = CFG.zonas.map(z => CLNG + z.offset[1]);
   const bbox = [Math.min(...lats) - 0.008, Math.min(...lngs) - 0.009, Math.max(...lats) + 0.008, Math.max(...lngs) + 0.009].map(v => v.toFixed(5)).join(',');
-  const q = `[out:json][timeout:90];way["highway"~"^(residential|tertiary|secondary|primary|unclassified|living_street)$"]["name"](${bbox});out geom;`;
+  const q = `[out:json][timeout:90];way["highway"~"${HIGHWAY.source}"]["name"](${bbox});out geom;`;
   console.log('Consultando Overpass…', bbox);
   const r = await fetch('https://overpass-api.de/api/interpreter', {
     method: 'POST', body: 'data=' + encodeURIComponent(q),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'cableado-demo/1.0', Accept: 'application/json' },
+    headers: { ...UA, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
   });
-  const ways = (await r.json()).elements;
+  if (!r.ok) throw new Error(`Overpass respondió ${r.status}`);
+  return (await r.json()).elements;
+}
+
+/** Alternativa: API oficial de OSM (/api/0.6/map), una caja chica por zona. Devuelve el mismo formato que Overpass */
+async function desdeApiOSM() {
+  const porId = new Map();
+  for (const z of CFG.zonas) {
+    const c = [CLAT + z.offset[0], CLNG + z.offset[1]];
+    const bbox = [c[1] - 0.007, c[0] - 0.006, c[1] + 0.007, c[0] + 0.006].map(v => v.toFixed(5)).join(',');
+    console.log(`Consultando API de OSM (${z.nombre})…`, bbox);
+    const r = await fetch(`https://api.openstreetmap.org/api/0.6/map?bbox=${bbox}`, { headers: UA });
+    if (!r.ok) throw new Error(`API de OSM respondió ${r.status}`);
+    const xml = await r.text();
+    const nodos = new Map();
+    for (const m of xml.matchAll(/<node id="(\d+)"[^>]*?lat="([-\d.]+)" lon="([-\d.]+)"/g)) nodos.set(+m[1], { lat: +m[2], lon: +m[3] });
+    for (const m of xml.matchAll(/<way id="(\d+)"[^>]*>([\s\S]*?)<\/way>/g)) {
+      const tags = Object.fromEntries([...m[2].matchAll(/<tag k="([^"]+)" v="([^"]*)"/g)].map(t => [t[1], t[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&')]));
+      if (!tags.name || !HIGHWAY.test(tags.highway || '')) continue;
+      const nodes = [...m[2].matchAll(/<nd ref="(\d+)"/g)].map(n => +n[1]);
+      if (nodes.some(n => !nodos.has(n))) continue;
+      porId.set(+m[1], { id: +m[1], tags, nodes, geometry: nodes.map(n => nodos.get(n)) });
+    }
+    await new Promise(res => setTimeout(res, 1200));   // respetar la política de uso de la API
+  }
+  return [...porId.values()];
+}
+
+async function main() {
+  let ways;
+  try { ways = await desdeOverpass(); }
+  catch (e) { console.log(`${e.message}. Se usa la API de OSM.`); ways = await desdeApiOSM(); }
   console.log(`${ways.length} calles recibidas`);
 
   // Esquinas: nodos compartidos por más de una calle

@@ -75,6 +75,7 @@ const U = (() => {
     building: '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M8 7h2M14 7h2M8 11h2M14 11h2"/>',
     shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
     layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
+    chart: '<path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/>',
     play: '<path d="M7 4v16l13-8z" fill="currentColor"/>',
     pause: '<path d="M7 4h3v16H7zM14 4h3v16h-3z" fill="currentColor"/>',
     next: '<path d="M5 4v16l10-8z" fill="currentColor"/><path d="M18 4v16"/>',
@@ -119,13 +120,14 @@ const U = (() => {
   }
 
   // ---------- Modales ----------
-  function modal({ title, body = '', footer = '', size = 'md', onClose } = {}) {
+  // drawer: true => panel lateral derecho (se usa para los detalles del tablero)
+  function modal({ title, subtitle = '', eyebrow = '', body = '', footer = '', size = 'md', drawer = false, onClose } = {}) {
     const root = document.getElementById('modal-root');
     const wrap = document.createElement('div');
-    wrap.className = 'modal-backdrop';
+    wrap.className = 'modal-backdrop' + (drawer ? ' drawer-backdrop' : '');
     wrap.innerHTML = `
-      <div class="modal modal-${size}" role="dialog" aria-modal="true">
-        <div class="modal-head"><h3>${title}</h3><button class="icon-btn" data-close aria-label="Cerrar">${icon('x')}</button></div>
+      <div class="modal ${drawer ? 'drawer' : 'modal-' + size}" role="dialog" aria-modal="true">
+        <div class="modal-head"><div>${eyebrow ? `<div class="eyebrow">${eyebrow}</div>` : ''}<h3>${title}</h3>${subtitle ? `<div class="muted small">${subtitle}</div>` : ''}</div><button class="icon-btn" data-close aria-label="Cerrar">${icon('x')}</button></div>
         <div class="modal-body"></div>
         <div class="modal-foot"></div>
       </div>`;
@@ -240,12 +242,22 @@ const U = (() => {
     return s + '</svg>';
   }
 
+  /** Mini gráfico de línea (sparkline) en SVG */
+  function sparkline(values, color = '#2a78d6', w = 120, h = 32) {
+    const max = Math.max(...values, 1), min = Math.min(...values, 0);
+    const pts = values.map((v, i) => [i * w / Math.max(values.length - 1, 1), h - 3 - (v - min) / (max - min || 1) * (h - 6)]);
+    const line = pts.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ');
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+      <polygon points="0,${h} ${line} ${w},${h}" fill="${color}" opacity=".1"/>
+      <polyline points="${line}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
+  }
+
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   return {
     rng, num, money, moneyShort, pct, todayISO, addDays, addMonths, daysBetween, monthsBetween,
     fmtDate, fmtDateTime, nowTime, nowLocalISO, monthLabel, hash, esc, icon, ESTADOS, badgeEstado,
-    toast, modal, closeModals, printHTML, posteSVG, posteDataURI, qrSVG, barcodeSVG, sleep, clamp,
+    toast, modal, closeModals, printHTML, posteSVG, sparkline, posteDataURI, qrSVG, barcodeSVG, sleep, clamp,
   };
 })();

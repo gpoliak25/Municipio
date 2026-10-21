@@ -15,7 +15,7 @@
  */
 const Store = (() => {
   const CFG = window.MOCK_CONFIG;
-  const VERSION = 5;
+  const VERSION = 8;
   const KEY = 'ocupacion-cableado-demo';
 
   const ETAPAS = ['Detección', 'Validación', 'Intimación', 'Plazo de regularización', 'Multa / cobro', 'Retiro a costa del proveedor', 'Cierre'];
@@ -113,13 +113,23 @@ const Store = (() => {
       });
     });
 
-    // 2) Estado objetivo de cada tramo según la distribución configurada
+    // 2) Estado objetivo de cada tramo según la distribución configurada. El exceso no se reparte al azar:
+    //    es más probable en permisos antiguos y en cuadras densas (es lo que detecta el módulo de analítica).
+    tramos.forEach(t => {
+      t.antiguedad = randInt(1, 15);
+      t.densidadUrbana = U.clamp(Math.round(zona(t.zona).densidad * 3 + (rnd() - 0.5) * 2.4), 1, 5);
+    });
     const N = tramos.length, D = CFG.distribucion;
     const nSin = Math.round(N * D.sinRelevar), nCrit = Math.round(N * D.critico), nLeve = Math.round(N * D.leve);
-    const est = shuffle([
-      ...Array(nSin).fill('sin'), ...Array(nCrit).fill('critico'), ...Array(nLeve).fill('leve'),
-      ...Array(N - nSin - nCrit - nLeve).fill('cumple'),
-    ]);
+    const zStd = k => { const v = tramos.map(t => t[k]), m = sum(v, x => x) / N, s = Math.sqrt(sum(v, x => (x - m) ** 2) / (N - 1)) || 1; return t => (t[k] - m) / s; };
+    const zAnt = zStd('antiguedad'), zDen = zStd('densidadUrbana');
+    const gauss = () => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
+    const est = Array(N).fill('cumple'), orden = shuffle(tramos.map((_, i) => i));
+    orden.slice(0, nSin).forEach(i => { est[i] = 'sin'; });
+    orden.slice(nSin)
+      .map(i => ({ i, s: 0.35 * zAnt(tramos[i]) + 0.45 * zDen(tramos[i]) + 0.6 * gauss() }))
+      .sort((a, b) => b.s - a.s)
+      .forEach(({ i }, k) => { est[i] = k < nCrit ? 'critico' : k < nCrit + nLeve ? 'leve' : 'cumple'; });
     const fIdx = tramos.findIndex(t => t.id === CFG.casoDestacado.tramoId);
     if (fIdx >= 0 && est[fIdx] !== 'critico') {
       const j = est.findIndex((e, i) => e === 'critico' && i !== fIdx);
@@ -139,7 +149,7 @@ const Store = (() => {
       });
       const aut = sum(t.ocupaciones, o => o.autorizados);
       if (e === 'sin') { t.relevado = false; return; }
-      if (e === 'cumple' && rnd() < 0.1) { const o = t.ocupaciones[0]; o.detectados = o.identificados = o.autorizados - 1; }
+      if (e === 'cumple') rnd();   // (antes: faltante de 1 cable; se conserva el sorteo para no alterar el resto de los datos)
       if (e === 'leve' || e === 'critico') {
         const exc = e === 'leve'
           ? Math.max(1, Math.min(Math.floor(aut * 0.5), Math.round(aut * (0.12 + rnd() * 0.36))))
@@ -350,14 +360,14 @@ const Store = (() => {
 
   function kpis() {
     const est = { cumple: 0, leve: 0, critico: 0, sin: 0 };
-    let autRel = 0, detRel = 0, exceso = 0, sinId = 0, desuso = 0, ident = 0, tramosRel = 0, autTotal = 0;
+    let autRel = 0, detRel = 0, exceso = 0, sinId = 0, desuso = 0, ident = 0, tramosRel = 0, autTotal = 0, sinUso = 0;
     state.tramos.forEach(t => {
       const m = metrics(t);
       est[m.estado]++;
       autTotal += m.aut;
       if (!t.relevado) return;
       tramosRel++; autRel += m.aut; detRel += m.det; exceso += m.exceso; sinId += t.sinIdentificar;
-      t.ocupaciones.forEach(o => { desuso += o.desuso; ident += Math.min(o.identificados, o.detectados); });
+      t.ocupaciones.forEach(o => { desuso += o.desuso; ident += Math.min(o.identificados, o.detectados); sinUso += Math.max(0, o.autorizados - o.detectados); });
     });
     const tot = totals();
     const abiertos = state.expedientes.filter(e => e.abierto);
@@ -365,7 +375,7 @@ const Store = (() => {
     const conMulta = state.expedientes.filter(e => e.multaAplicada);
     const mes = state.hoy.slice(0, 7);
     return {
-      est, autRel, detRel, exceso, sinId, desuso, ident, tramosRel, autTotal, tramos: state.tramos.length,
+      est, autRel, detRel, exceso, sinId, desuso, ident, tramosRel, autTotal, sinUso, tramos: state.tramos.length,
       pctExceso: autRel ? exceso / autRel : 0,
       ...tot,
       brechaMes: tot.potencialMes - tot.regularMes,
